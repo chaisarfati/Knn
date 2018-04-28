@@ -10,14 +10,14 @@ public class FeatureScaler {
 	 */
 	public Instances scaleData(Instances instances) {
         // Stores the means of the values for each feature
-        double[] means = new double[instances.numAttributes() - 1];
-        for (int i = 0; i < means.length; i++) {
+        double[] means = new double[instances.numAttributes()-1];
+        for (int i = 1; i < means.length; i++) {
             means[i] = instances.meanOrMode(i);
         }
         // Stores the standard deviations of the values for each feature
-        double[] stds = new double[instances.numAttributes() - 1];
-        for (int i = 0; i < stds.length; i++) {
-            stds[i] = std(instances, i);
+        double[] stds = new double[instances.numAttributes()-1];
+        for (int i = 1; i < stds.length; i++) {
+            stds[i] = Math.sqrt(instances.variance(i));
         }
 
         // Creates new Instances object that'll contain scaled version of instances
@@ -25,7 +25,7 @@ public class FeatureScaler {
         // Scaling every instance of instances and store it in result
         for (int i = 0; i < instances.numInstances(); i++) {
             result.add(instances.instance(i));
-            for (int j = 0; j < instances.numAttributes() - 1; j++) {
+            for (int j = 1; j < instances.numAttributes()-1; j++) {
                 double normalizedValue = (instances.instance(i).value(j) - means[j]) / stds[j];
                 result.instance(i).setValue(j, normalizedValue);
             }

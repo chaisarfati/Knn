@@ -7,6 +7,7 @@ import weka.core.Instances;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 class Nearest{
     Instance instance;
@@ -19,7 +20,6 @@ class Nearest{
 
 
 class DistanceCalculator {
-
     double p;
     boolean efficient;
     boolean infinity;
@@ -31,20 +31,21 @@ class DistanceCalculator {
     }
 
     /**
-    * We leave it up to you whether you want the distance method to get all relevant
-    * parameters(lp, efficient, etc..) or have it has a class variables.
-    */
-    public double distance (Instance one, Instance two) {
+     * We leave it up to you whether you want the distance method to get all relevant
+     * parameters(lp, efficient, etc..) or have it has a class variables.
+     */
+    public double distance (Instance one, Instance two, double threshold) {
         if(efficient && infinity){
-            return efficientLInfinityDistance(one, two);
+            return efficientLInfinityDistance(one, two, threshold);
         }else if(efficient && !infinity){
-            return efficientLpDistance(one, two);
+            return efficientLpDistance(one, two, threshold);
         }else if(!efficient && infinity){
             return lInfinityDistance(one, two);
         }else{
             return lpDistance(one, two);
         }
     }
+
 
     /**
      * Returns the Lp distance between 2 instances.
@@ -85,7 +86,7 @@ class DistanceCalculator {
      * @param two
      * @return
      */
-    private double efficientLpDistance(Instance one, Instance two) {
+    private double efficientLpDistance(Instance one, Instance two, double threshold) {
         return 0.0;
     }
 
@@ -95,7 +96,7 @@ class DistanceCalculator {
      * @param two
      * @return
      */
-    private double efficientLInfinityDistance(Instance one, Instance two) {
+    private double efficientLInfinityDistance(Instance one, Instance two, double threshold) {
         return 0.0;
     }
 }
@@ -106,16 +107,22 @@ public class Knn implements Classifier {
     private Instances m_trainingInstances;
     private DistanceCalculator calculator;
     private int k;
+    public boolean weight;
 
-    public Knn(Instances m_trainingInstances, DistanceCalculator calculator, int k) {
+    public Knn(Instances m_trainingInstances){
+        this.m_trainingInstances = m_trainingInstances;
+    }
+
+    public Knn(Instances m_trainingInstances, DistanceCalculator calculator, int k, boolean weight) {
         this.m_trainingInstances = m_trainingInstances;
         this.calculator = calculator;
         this.k = k;
+        this.weight = weight;
     }
 
     @Override
     /**
-     * Build the knn classifier. In our case, simply stores the given instances for 
+     * Build the knn classifier. In our case, simply stores the given instances for
      * later use in the prediction.
      * @param instances
      */
@@ -130,7 +137,12 @@ public class Knn implements Classifier {
      * @return The instance predicted value.
      */
     public double regressionPrediction(Instance instance) {
-        return 0.0;
+        ArrayList<Instance> list = findNearestNeighbors(instance);
+        if(!weight){
+            return getAverageValue(list);
+        }else{
+            return getWeightedAverageValue(list, instance);
+        }
     }
 
     /**
@@ -157,7 +169,13 @@ public class Knn implements Classifier {
      * @return The cross validation error.
      */
     public double crossValidationError(Instances insances, int num_of_folds) {
-        return 0.0;
+        double valError = 0.0;
+        insances.randomize(new Random());
+        for (int i = 0; i < num_of_folds; i++) {
+            valError += calcAvgError(insances.testCV(num_of_folds, i));
+        }
+        valError /= num_of_folds;
+        return valError;
     }
 
 
@@ -168,16 +186,60 @@ public class Knn implements Classifier {
      */
     public ArrayList<Instance> findNearestNeighbors(Instance instance) {
         ArrayList<Instance> list = new ArrayList<>();
-        Nearest[] nearests = new Nearest[m_trainingInstances.numInstances()];
+        Nearest[] nearests = new Nearest[k + 1];
+        int j = 0;
+        double maxDistance = Double.POSITIVE_INFINITY;
         for (int i = 0; i < m_trainingInstances.numInstances(); i++) {
-            nearests[i] = new Nearest(m_trainingInstances.instance(i),
-                    calculator.distance(m_trainingInstances.instance(i), instance));
+            if(!equalInstance(instance, m_trainingInstances.instance(i))) {
+                maxDistance = insertElement(nearests, new Nearest(m_trainingInstances.instance(i),
+                        calculator.distance(m_trainingInstances.instance(i), instance, maxDistance)), k);
+            }
         }
         sort(nearests, 0, nearests.length - 1);
+
+        // Add to the list the k nearest neighbors
         for (int i = 0; i < k; i++) {
             list.add(nearests[i].instance);
         }
         return list;
+    }
+    /* Helper of findNearestNeighbors */
+    public double insertElement(Nearest[] arr, Nearest elem, int k){
+        int counter = 0;
+        for (int i = 0; i < k; i++) {
+            if(arr[i] == null) counter++;
+        }
+
+        if(counter >= 1){
+            for (int i = 0; i < k; i++) {
+                if(arr[i] == null){
+                    arr[i] = elem;
+                    break;
+                }
+
+            }
+            int i = 1;
+            double max = arr[0].distance;
+            double current;
+            while (arr[i] != null){
+                current = arr[i].distance;
+                if(current > max){
+                    max = current;
+                }
+                i++;
+            }
+            return max;
+        }else {
+            for (int i = 0; i < k; i++) {
+                if (elem.distance < arr[i].distance) {
+                    arr[k] = elem;
+                    sort(arr, 0, arr.length - 1);
+                    arr[k] = null;
+                    return arr[arr.length - 2].distance;
+                }
+            }
+        }
+        return 0;
     }
 
     /**
@@ -202,17 +264,30 @@ public class Knn implements Classifier {
      * @return
      */
     public double getWeightedAverageValue(List<Instance> list, Instance instance) {
+        double upperSum = 0.0;
         double weightTotal = 0.0;
+        double weightI;
+
         for (int i = 0; i < list.size(); i++) {
-            weightTotal += 1 / Math.pow(calculator.distance(list.get(i), instance), 2);
+            if(Math.pow(calculator.distance(list.get(i), instance, Double.POSITIVE_INFINITY), 2) != 0){
+                weightTotal += 1.0 / Math.pow(calculator.distance(list.get(i), instance, Double.POSITIVE_INFINITY), 2);
+            }
         }
 
-        double weightI;
-        double upperSum = 0.0;
+
         for (int i = 0; i < list.size(); i++) {
-            weightI = 1 / Math.pow(calculator.distance(list.get(i), instance), 2);
-            upperSum += weightI * list.get(i).classValue();
+            weightI = 1.0 / Math.pow(calculator.distance(list.get(i), instance,Double.POSITIVE_INFINITY), 2);
+
+            if(Math.pow(calculator.distance(list.get(i), instance,Double.POSITIVE_INFINITY), 2) != 0.0){
+                upperSum += weightI * list.get(i).classValue();
+            }
+
         }
+
+        if(weightTotal == 0.0 && upperSum == 0.0){
+            return getAverageValue(list);
+        }
+
         return upperSum / weightTotal;
     }
 
@@ -239,11 +314,37 @@ public class Knn implements Classifier {
         this.calculator = calculator;
     }
 
-
     public void setK(int k) {
         this.k = k;
     }
 
+    public void setWeight(boolean weight) {
+        this.weight = weight;
+    }
+
+    public void setM_trainingInstances(Instances m_trainingInstances) {
+        this.m_trainingInstances = m_trainingInstances;
+    }
+
+    /**
+     * Quicksort implementation that sorts the array of Nearest
+     * object in increasing order of the distance field
+     * @param arr
+     * @param low
+     * @param high
+     */
+    public void sort(Nearest arr[], int low, int high) {
+        if (low < high) {
+            /* pi is partitioning index, arr[pi] is
+              now at right place */
+            int pi = partition(arr, low, high);
+            // Recursively sort elements before
+            // partition and after partition
+            sort(arr, low, pi - 1);
+            sort(arr, pi + 1, high);
+        }
+    }
+    /* Partition function of quicksort */
     private int partition(Nearest[] arr, int low, int high) {
         double pivot = arr[high].distance;
         int i = (low - 1); // index of smaller element
@@ -252,14 +353,12 @@ public class Knn implements Classifier {
             // equal to pivot
             if (arr[j].distance <= pivot) {
                 i++;
-
                 // swap arr[i] and arr[j]
                 Nearest temp = arr[i];
                 arr[i] = arr[j];
                 arr[j] = temp;
             }
         }
-
         // swap arr[i+1] and arr[high] (or pivot)
         Nearest temp = arr[i + 1];
         arr[i + 1] = arr[high];
@@ -268,23 +367,13 @@ public class Knn implements Classifier {
         return i + 1;
     }
 
-
-    /* The main function that implements QuickSort()
-      arr[] --> Array to be sorted,
-      low  --> Starting index,
-      high  --> Ending index */
-    public void sort(Nearest arr[], int low, int high) {
-        if (low < high) {
-            /* pi is partitioning index, arr[pi] is
-              now at right place */
-            int pi = partition(arr, low, high);
-
-            // Recursively sort elements before
-            // partition and after partition
-            sort(arr, low, pi - 1);
-            sort(arr, pi + 1, high);
+    private boolean equalInstance(Instance one, Instance two){
+        for (int i = 0; i < one.numAttributes(); i++) {
+            if(one.value(i) != two.value(i)) return false;
         }
+        return true;
     }
 
 }
+
 

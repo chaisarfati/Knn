@@ -68,7 +68,7 @@
 % Characteristics: 159 cases; 14 continuous variables; 1 nominal vars.. 
 
 @relation auto_price
-@attribute symboling                numeric
+@attribute symboling                {-3, -2, -1, 0, 1, 2, 3}
 @attribute normalized-losses        numeric
 @attribute wheel-base               numeric
 @attribute length                   numeric
