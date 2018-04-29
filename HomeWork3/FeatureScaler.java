@@ -1,6 +1,8 @@
 package HomeWork3;
 
 import weka.core.Instances;
+import weka.filters.Filter;
+import weka.filters.unsupervised.attribute.Standardize;
 
 public class FeatureScaler {
 	/**
@@ -9,28 +11,20 @@ public class FeatureScaler {
 	 * @return A scaled instances object.
 	 */
 	public Instances scaleData(Instances instances) {
-        // Stores the means of the values for each feature
-        double[] means = new double[instances.numAttributes()-1];
-        for (int i = 1; i < means.length; i++) {
-            means[i] = instances.meanOrMode(i);
-        }
-        // Stores the standard deviations of the values for each feature
-        double[] stds = new double[instances.numAttributes()-1];
-        for (int i = 1; i < stds.length; i++) {
-            stds[i] = Math.sqrt(instances.variance(i));
+        Instances scaled = new Instances(instances);
+        Standardize filter = new Standardize();
+        try{
+            filter.setInputFormat(scaled);
+        }catch (Exception e){
+            e.printStackTrace();
         }
 
-        // Creates new Instances object that'll contain scaled version of instances
-        Instances result = new Instances(instances, 0);
-        // Scaling every instance of instances and store it in result
-        for (int i = 0; i < instances.numInstances(); i++) {
-            result.add(instances.instance(i));
-            for (int j = 1; j < instances.numAttributes()-1; j++) {
-                double normalizedValue = (instances.instance(i).value(j) - means[j]) / stds[j];
-                result.instance(i).setValue(j, normalizedValue);
-            }
+        try{
+            scaled = Filter.useFilter(scaled, filter);
+        }catch (Exception e){
+            e.printStackTrace();
         }
-        return result;
+        return scaled;
 	}
 
 

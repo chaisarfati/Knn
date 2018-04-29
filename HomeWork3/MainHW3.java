@@ -32,8 +32,9 @@ public class MainHW3 {
         // Original data set
         Instances carDataSet = loadData("auto_price.txt");
         // Scaled data set
-        FeatureScaler scaler = new FeatureScaler();
-        Instances scaledCarDataSet = scaler.scaleData(carDataSet);
+        Instances scaledCarDataSet = new FeatureScaler().scaleData(carDataSet);
+
+
 
 
         System.out.println("----------------------------\n" +
@@ -100,7 +101,8 @@ public class MainHW3 {
         knn.setWeight(globWeight);
         knn.setCalculator(calc);
         knn.setK(globK);
-        lowestError = knn.crossValidationError(carDataSet, 10);
+        lowestError = knn.crossValidationError(scaledCarDataSet, 10);
+        System.out.println(lowestError);
 
         for (int i = 0; i < 2; i++) {
             currWeight = (i==0) ? false : true;
@@ -111,7 +113,7 @@ public class MainHW3 {
                 knn.setCalculator(calc);
                 for (int k = 1; k <= 20; k++) {
                     knn.setK(k);
-                    currError = knn.crossValidationError(carDataSet, 10);
+                    currError = knn.crossValidationError(scaledCarDataSet, 10);
                     if(lowestError > currError){
                         globK = k;
                         globP = j;
@@ -130,6 +132,9 @@ public class MainHW3 {
                 "lp = " + realLp + ", majority function = " + weightNormal + " for auto_price data is: " +
                 lowestError + "\n");
 
+
+        Knn effKnn = new Knn(scaledCarDataSet, new DistanceCalculator(1, true, false), 6, false);
+        System.out.println(effKnn.crossValidationError(scaledCarDataSet, 10));
     }
 
 }
