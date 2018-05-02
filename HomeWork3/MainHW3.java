@@ -35,8 +35,7 @@ public class MainHW3 {
         Instances scaledCarDataSet = new FeatureScaler().scaleData(carDataSet);
 
 
-
-
+        // Cross validation for original data set
         System.out.println("----------------------------\n" +
                 "Results for original dataset:\n" +
                 "----------------------------");
@@ -85,6 +84,7 @@ public class MainHW3 {
                 lowestError + "\n");
 
 
+        // Cross validation for scaled data set
         System.out.println("----------------------------\n" +
                 "Results for scaled dataset:\n" +
                 "----------------------------");
@@ -102,7 +102,7 @@ public class MainHW3 {
         knn.setCalculator(calc);
         knn.setK(globK);
         lowestError = knn.crossValidationError(scaledCarDataSet, 10);
-        System.out.println(lowestError);
+
 
         for (int i = 0; i < 2; i++) {
             currWeight = (i==0) ? false : true;
@@ -133,8 +133,36 @@ public class MainHW3 {
                 lowestError + "\n");
 
 
-        Knn effKnn = new Knn(scaledCarDataSet, new DistanceCalculator(1, true, false), 6, false);
-        System.out.println(effKnn.crossValidationError(scaledCarDataSet, 10));
+        // Testing with different number of folds
+        Knn testKnn = new Knn(scaledCarDataSet, new DistanceCalculator(globP, true, globInfinity), globK, globWeight);
+        double currentError;
+        long currStartTime;
+        int[] folds = {scaledCarDataSet.numInstances(), 50, 10, 5, 3};
+
+        for (int i = 0; i < folds.length; i++) {
+
+            System.out.println("----------------------------\n" +
+                    "Results for " + folds[i] + " folds:\n" +
+            "----------------------------");
+
+            testKnn.setEfficient(false);
+            currStartTime = System.nanoTime();
+            currentError = testKnn.crossValidationError(scaledCarDataSet, folds[i]);
+            currStartTime = System.nanoTime() - currStartTime;
+            System.out.println("Cross validation error of regular knn on auto_price dataset is "+currentError+ " and " +
+                            "the average elapsed time is " +  currStartTime/folds[i]  +
+                    "\nThe total elapsed time is: " + currStartTime + "\n");
+
+
+            testKnn.setEfficient(true);
+            currStartTime = System.nanoTime();
+            currentError = testKnn.crossValidationError(scaledCarDataSet, folds[i]);
+            currStartTime = System.nanoTime() - currStartTime;
+            System.out.println("Cross validation error of efficient knn on auto_price dataset is "+currentError+ " and " +
+                    "the average elapsed time is " +  currStartTime/folds[i]  +
+                    "\nThe total elapsed time is: " + currStartTime + "\n");
+        }
+
     }
 
 }

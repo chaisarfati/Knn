@@ -1,0 +1,67 @@
+----------------------------
+Results for original dataset:
+----------------------------
+Cross validation error with K = 4, lp = 1.0, majority function = weighted for auto_price data is: 1268.6496243952029
+
+----------------------------
+Results for scaled dataset:
+----------------------------
+Cross validation error with K = 6, lp = 1.0, majority function = weighted for auto_price data is: 1415.0423042371626
+
+----------------------------
+Results for 159 folds:
+----------------------------
+Cross validation error of regular knn on auto_price dataset is 1416.7388391737857 and the average elapsed time is 491077
+The total elapsed time is: 78081305
+
+Cross validation error of efficient knn on auto_price dataset is 2391.05105226656 and the average elapsed time is 552639
+The total elapsed time is: 87869749
+
+----------------------------
+Results for 50 folds:
+----------------------------
+Cross validation error of regular knn on auto_price dataset is 1448.3442408828516 and the average elapsed time is 1588232
+The total elapsed time is: 79411610
+
+Cross validation error of efficient knn on auto_price dataset is 2435.8144508341447 and the average elapsed time is 1809399
+The total elapsed time is: 90469990
+
+----------------------------
+Results for 10 folds:
+----------------------------
+Cross validation error of regular knn on auto_price dataset is 1420.9259525373013 and the average elapsed time is 8002602
+The total elapsed time is: 80026021
+
+Cross validation error of efficient knn on auto_price dataset is 2422.253429997226 and the average elapsed time is 5574005
+The total elapsed time is: 55740059
+
+----------------------------
+Results for 5 folds:
+----------------------------
+Cross validation error of regular knn on auto_price dataset is 1416.0714065627003 and the average elapsed time is 16904975
+The total elapsed time is: 84524879
+
+Cross validation error of efficient knn on auto_price dataset is 2377.886937482608 and the average elapsed time is 10559502
+The total elapsed time is: 52797510
+
+----------------------------
+Results for 3 folds:
+----------------------------
+Cross validation error of regular knn on auto_price dataset is 1416.7389570062635 and the average elapsed time is 28645716
+The total elapsed time is: 85937148
+
+Cross validation error of efficient knn on auto_price dataset is 2368.290262538821 and the average elapsed time is 19681711
+The total elapsed time is: 59045134
+
+
+
+
+1.
+
+	Scaling a random variable (here a feature) helps us getting data that is independent from the unity in which it's expressed, and also independent from the range of the set it takes value from. It also leads all features to have same mean and standard deviation. Therefore, it reduces the risk of misclassifying an instance by getting less significant neighbors biased by unrelated parameters and thus have a positive effect in our case.
+	In the context of decision tree algorithm (mainly used when considering data taking discrete values) feature scaling will be irrelevant. Indeed, even when considering continous features, decision tree algorithm is performing a greedy approach where we don't build our model based on relation between different features of the dataset but rather by finding the feature that will best split the dataset.
+
+
+2.
+
+	In our dataset, the class value we want to predict is a continous value. In the backward-forward kNN filtering, we check if the instance is correctly classified and if yes remove that instance. However, in our case, we cannot classify an instance with 100% accuracy (predicting the target) since we return an average. Therefore, we won't be able to use the EXACT same backward-forward kNN filtering as in the recitation. However, we could change it a bit and set up a threshold error, and we are under this error we consider the instance classified correctly.

@@ -15,32 +15,10 @@ public class FeatureScaler {
         Standardize filter = new Standardize();
         try{
             filter.setInputFormat(scaled);
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-
-        try{
             scaled = Filter.useFilter(scaled, filter);
         }catch (Exception e){
             e.printStackTrace();
         }
         return scaled;
 	}
-
-
-    /**
-     * Returns the standard deviation of all the values attained for the ith feature
-     * @param instances
-     * @param i
-     * @return
-     */
-	public static double std(Instances instances, int i){
-        double mean = instances.meanOrMode(i);
-        double variance = 0;
-        for (int j = 0; j < instances.numInstances(); j++) {
-            variance += Math.pow(instances.instance(j).value(i) - mean, 2);
-        }
-        variance /= instances.numInstances() - 1;
-        return Math.sqrt(variance);
-    }
 }
