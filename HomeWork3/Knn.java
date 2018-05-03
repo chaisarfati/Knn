@@ -7,7 +7,6 @@ import weka.core.Instances;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 class Nearest{
     Instance instance;
@@ -158,7 +157,7 @@ public class Knn implements Classifier {
     public double regressionPrediction(Instance instance) {
         ArrayList<Instance> list;
         if(efficient){
-            list = effFindNearestNeighbor2(instance);
+            list = effNearestNeighbors(instance);
         }else {
             list = findNearestNeighbors(instance);
         }
@@ -195,13 +194,15 @@ public class Knn implements Classifier {
      */
     public double crossValidationError(Instances insances, int num_of_folds) {
         double valError = 0.0;
-        insances.randomize(new Random());
+        //insances.randomize(new Random());
         for (int i = 0; i < num_of_folds; i++) {
             valError += calcAvgError(insances.testCV(num_of_folds, i));
         }
         valError /= num_of_folds;
         return valError;
     }
+
+
 
 
     /**
@@ -230,13 +231,130 @@ public class Knn implements Classifier {
         }
         return list;
     }
+    /* Auxiliary function of findNearestNeighbors */
+    private boolean equalInstance(Instance one, Instance two){
+        for (int i = 0; i < one.numAttributes(); i++) {
+            if(one.value(i) != two.value(i)) return false;
+        }
+        return true;
+    }
+
+
+
+    /**
+     * Finds the k nearest neighbors.
+     *
+     * @param instance
+     */
+    public ArrayList<Instance> effNearestNeighbors(Instance instance) {
+        ArrayList<Instance> list = new ArrayList<>();
+        Nearest[] nearests = new Nearest[m_trainingInstances.numInstances() - 1];
+        int j = 0;
+        double max = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < nearests.length; i++) {
+
+            if(i < k + 1){
+                max = Double.POSITIVE_INFINITY;
+            }
+
+            if(!equalInstance(instance, m_trainingInstances.instance(j))) {
+
+                nearests[i] = new Nearest(m_trainingInstances.instance(j),
+                        calculator.effDistance(m_trainingInstances.instance(j), instance, max));
+
+                max = getMaxValue(nearests);
+                j++;
+            }else{
+                j++;
+                i--;
+            }
+        }
+        sort(nearests, 0, nearests.length - 1);
+        // Add to the list the k nearest neighbors
+        for (int i = 0; i < k; i++) {
+            list.add(nearests[i].instance);
+        }
+        return list;
+    }
+
+
+    /**
+     * Find k nearest neighbors using the efficient distance check
+     * @param instance
+     * @return
+     */
+    public ArrayList<Instance> effFindNearestNeighbors(Instance instance) {
+        ArrayList<Instance> list = new ArrayList<>();
+        Nearest[] nearests = new Nearest[k];
+        int j = 0;
+        for (int i = 0; i < nearests.length; i++) {
+            if(!equalInstance(instance, m_trainingInstances.instance(j))) {
+                nearests[i] = new Nearest(m_trainingInstances.instance(j),
+                        calculator.distance(m_trainingInstances.instance(j), instance));
+                j++;
+            }else{
+                j++;
+                i--;
+            }
+        }
+        double currentMax;
+
+        for (int i = nearests.length; i < m_trainingInstances.numInstances(); i++) {
+            currentMax = getMaxValue(nearests);
+            if ( calculator.effDistance(m_trainingInstances.instance(i), instance, currentMax)
+                    < currentMax){
+                nearests[getMaxIndex(nearests)] = new Nearest(m_trainingInstances.instance(i), calculator.distance(
+                        m_trainingInstances.instance(i), instance
+                ));
+            }
+        }
+
+        // Add to the list the k nearest neighbors
+        for (int i = 0; i < k; i++) {
+            list.add(nearests[i].instance);
+        }
+        return list;
+    }
+    /* Get max elem in Nearest arr*/
+    public int getMaxIndex(Nearest[] arr){
+        double max = arr[0].distance;
+        int index = 0;
+        double current;
+        for (int i = 1; i < arr.length; i++) {
+            current = arr[i].distance;
+            if(max < current){
+                max = current;
+                index = i;
+            }
+        }
+        return index;
+    }
+    /* Get max value in Nearest arr*/
+    public double getMaxValue(Nearest[] arr){
+        double max = arr[0].distance;
+        int counter = 0;
+        for (int i = 0; i < arr.length; i++) {
+            if(arr[i] == null){
+                break;
+            }else{
+                counter++;
+            }
+        }
+        for (int i = 0; i < counter; i++) {
+            if (arr[i].distance > max) {
+                    max = arr[i].distance;
+                }
+        }
+        return max;
+    }
+
 
 
     /**
      * Cacluates the average value of the given elements in the collection.
      *
-     * @param
-     * @return
+     * @param set
+     * @return the average of the targets
      */
     public double getAverageValue(List<Instance> set) {
         double result = 0;
@@ -251,29 +369,32 @@ public class Knn implements Classifier {
      * Calculates the weighted average of the target values of all the elements in the collection
      * with respect to their distance from a specific instance.
      *
-     * @return
+     * @param list
+     * @param instance
+     * @return the weighted average of the targets
      */
     public double getWeightedAverageValue(List<Instance> list, Instance instance) {
         double upperSum = 0.0;
         double weightTotal = 0.0;
         double weightI;
 
+        // Computes the denominator of the formula
         for (int i = 0; i < list.size(); i++) {
+            // Checks if the distance is not zero
             if(Math.pow(calculator.distance(list.get(i), instance), 2) != 0){
                 weightTotal += 1.0 / Math.pow(calculator.distance(list.get(i), instance), 2);
             }
         }
-
-
+        // Compute the numerator of the formula
         for (int i = 0; i < list.size(); i++) {
             weightI = 1.0 / Math.pow(calculator.distance(list.get(i), instance), 2);
-
+            // Checks if the distance is not zero again
             if(Math.pow(calculator.distance(list.get(i), instance), 2) != 0.0){
                 upperSum += weightI * list.get(i).classValue();
             }
 
         }
-
+        // If the instances in the collection all have a 0 distance from instance
         if(weightTotal == 0.0 && upperSum == 0.0){
             return getAverageValue(list);
         }
@@ -300,22 +421,19 @@ public class Knn implements Classifier {
         return 0.0;
     }
 
+    // Setters of Knn
     public void setCalculator(DistanceCalculator calculator) {
         this.calculator = calculator;
     }
-
     public void setK(int k) {
         this.k = k;
     }
-
     public void setWeight(boolean weight) {
         this.weight = weight;
     }
-
     public void setM_trainingInstances(Instances m_trainingInstances) {
         this.m_trainingInstances = m_trainingInstances;
     }
-
     public void setEfficient(boolean efficient) {
         this.efficient = efficient;
     }
@@ -361,150 +479,7 @@ public class Knn implements Classifier {
         return i + 1;
     }
 
-    private boolean equalInstance(Instance one, Instance two){
-        for (int i = 0; i < one.numAttributes(); i++) {
-            if(one.value(i) != two.value(i)) return false;
-        }
-        return true;
-    }
 
-
-    public ArrayList<Instance> effFindNearestNeighbor(Instance instance) {
-        ArrayList<Instance> list = new ArrayList<>();
-        Nearest[] nearests = new Nearest[k + 1];
-        Instances copy = new Instances(m_trainingInstances);
-        for (int i = 0; i < m_trainingInstances.numInstances(); i++) {
-            copy.add(m_trainingInstances.instance(i));
-        }
-
-        double maximum;
-
-        for (int i = 0; i < k; i++) {
-            insertElement(nearests, copy.instance(i), instance, Double.POSITIVE_INFINITY);
-        }
-        maximum = insertElement(nearests, copy.instance(k), instance, Double.POSITIVE_INFINITY);
-        for (int i = k + 1; i < copy.numInstances(); i++) {
-            if(!equalInstance(instance, copy.instance(i))) {
-                maximum = insertElement(nearests, copy.instance(i), instance, maximum);
-            }
-        }
-
-        // Add to the list the k nearest neighbors
-        for (int i = 0; i < k; i++) {
-            list.add(nearests[i].instance);
-        }
-        return list;
-    }
-    /* Helper of findNearestNeighbors */
-    public double insertElement(Nearest[] arr, Instance element, Instance in, double max){
-        int k = arr.length - 1;
-        Nearest elem = new Nearest(element, calculator.effDistance(element, in, max));
-        int counter = 0;
-        for (int i = 0; i < k; i++) {
-            if(arr[i] == null) counter++;
-        }
-
-        if(counter >= 1){
-            for (int i = 0; i < k; i++ ) {
-                if(arr[i] == null){
-                    arr[i] = elem;
-                    break;
-                }
-
-            }
-            int i = 1;
-            double maxi = arr[0].distance;
-            double current;
-            while (arr[i] != null){
-                current = arr[i].distance;
-                if(current > maxi){
-                    maxi = current;
-                }
-                i++;
-            }
-            return maxi;
-        }else {
-            for (int i = 0; i < k; i++) {
-                if (elem.distance < arr[i].distance) {
-                    arr[k] = elem;
-                    sort(arr, 0, arr.length - 1);
-                    arr[k] = null;
-                    return arr[arr.length - 2].distance;
-                }
-            }
-        }
-        return 0;
-    }
-
-
-    public ArrayList<Instance> effFindNearestNeighbor3(Instance instance) {
-        ArrayList<Instance> list = new ArrayList<>();
-        Instance[] best = new Instance[k];
-
-        for (int i = 0; i < k; i++) {
-            best[i] = m_trainingInstances.instance(i);
-        }
-        for (int i = k; i < m_trainingInstances.numInstances(); i++) {
-            if(calculator.distance(m_trainingInstances.instance(i), instance) < maxDistanceInArr(best, instance)){
-                best[getMaxIndex(best, instance)] = m_trainingInstances.instance(i);
-            }
-        }
-
-        // Add to the list the k nearest neighbors
-        for (int i = 0; i < k; i++) {
-            list.add(best[i]);
-        }
-        return list;
-    }
-
-
-    public ArrayList<Instance> effFindNearestNeighbor2(Instance instance) {
-        ArrayList<Instance> list = new ArrayList<>();
-        Instance[] best = new Instance[k];
-        double max = 0;
-
-        for (int i = 0; i < k; i++) {
-            best[i] = m_trainingInstances.instance(i);
-        }
-        for (int i = k; i < m_trainingInstances.numInstances(); i++) {
-            max = maxDistanceInArr(best, instance);
-            if(calculator.effDistance(m_trainingInstances.instance(i), instance, max) < max){
-                best[getMaxIndex(best, instance)] = m_trainingInstances.instance(i);
-            }
-        }
-
-        // Add to the list the k nearest neighbors
-        for (int i = 0; i < k; i++) {
-            list.add(best[i]);
-        }
-        return list;
-    }
-
-    public int getMaxIndex(Instance[] arr, Instance in){
-        double max = calculator.distance(arr[0], in);
-        int index = 0;
-        double current;
-        for (int i = 1; i < arr.length; i++) {
-            current = calculator.distance(arr[i], in);
-            if(max < current){
-                max = current;
-                index = i;
-            }
-        }
-        return index;
-    }
-
-    public double maxDistanceInArr(Instance[] arr, Instance in){
-        double max = calculator.distance(arr[0], in);
-        double current;
-        for (int i = 1; i < arr.length; i++) {
-            current = calculator.distance(arr[i], in);
-            if(current > max){
-                max =  current;
-            }
-        }
-        return max;
-    }
 }
 
 

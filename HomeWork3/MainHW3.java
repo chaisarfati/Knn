@@ -48,6 +48,7 @@ public class MainHW3 {
         double currError;
 
         Knn knn = new Knn(carDataSet);
+
         DistanceCalculator calc = new DistanceCalculator(globP, false, globInfinity);
         knn.setWeight(globWeight);
         knn.setCalculator(calc);
